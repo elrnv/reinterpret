@@ -2,6 +2,10 @@
 
 Low level utility functions to reinterpret arrays of data in Rust
 
+[![On crates.io](https://img.shields.io/crates/v/reinterpret.svg)](https://crates.io/crates/reinterpret)
+[![On docs.rs](https://docs.rs/reinterpret/badge.svg)](https://docs.rs/reinterpret/)
+[![Build status](https://travis-ci.org/elrnv/reinterpret.svg?branch=master)](https://travis-ci.org/elrnv/reinterpret)
+
 # License
 
 This repository is licensed under either of
