@@ -2,5 +2,14 @@
 name = "reinterpret"
 version = "0.1.0"
 authors = ["Egor Larionov <egor.larionov@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Low level utility functions to reinterpret arrays of data"
 
-[dependencies]
+homepage = "https://github.com/elrnv/reinterpret"
+repository = "https://github.com/elrnv/reinterpret"
+readme = "README.md"
+
+keywords = ["reinterpret", "cast"]
+
+[badges]
+travis-ci = { repository = "https://travis-ci.org/elrnv/reinterpret", branch = "master" }
