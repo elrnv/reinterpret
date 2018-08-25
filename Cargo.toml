@@ -12,4 +12,4 @@ readme = "README.md"
 keywords = ["reinterpret", "cast"]
 
 [badges]
-travis-ci = { repository = "https://travis-ci.org/elrnv/reinterpret", branch = "master" }
+travis-ci = { repository = "elrnv/reinterpret", branch = "master" }
