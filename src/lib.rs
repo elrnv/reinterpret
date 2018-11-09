@@ -55,36 +55,65 @@ use std::slice;
 /// Reinterpret a given slice as a slice of another type. This function checks that the resulting
 /// slice is appropriately sized.
 pub fn reinterpret_mut_slice<T, S>(slice: &mut [T]) -> &mut [S] {
-    // We must be able to split the given slice into appropriately sized chunks.
-    assert_eq!((slice.len() * size_of::<T>()) % size_of::<S>(), 0,
-                "Slice cannot be safely reinterpreted due to a misaligned size");
-    let nu_len = (slice.len() * size_of::<T>()) / size_of::<S>();
+    let size_t = size_of::<T>();
+    let size_s = size_of::<S>();
+    let nu_len = if size_t > 0 {
+        assert_ne!(size_s, 0, "Cannot reinterpret a slice of non-zero sized types as a slice of zero sized types.");
+        // We must be able to split the given slice into appropriately sized chunks.
+        assert_eq!((slice.len() * size_t) % size_s, 0,
+                    "Slice cannot be safely reinterpreted due to a misaligned size");
+        (slice.len() * size_t) / size_s
+    } else {
+        assert_eq!(size_s, 0, "Cannot reinterpret a slice of zero sized types as a slice of non-zero sized types.");
+        slice.len()
+    };
     unsafe { slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut S, nu_len) }
 }
 
 /// Reinterpret a given slice as a slice of another type. This function checks that the resulting
 /// slice is appropriately sized.
 pub fn reinterpret_slice<T, S>(slice: &[T]) -> &[S] {
-    // We must be able to split the given slice into appropriately sized chunks.
-    assert_eq!((slice.len() * size_of::<T>()) % size_of::<S>(), 0,
-               "Slice cannot be safely reinterpreted due to a misaligned size");
-    let nu_len = (slice.len() * size_of::<T>()) / size_of::<S>();
+    let size_t = size_of::<T>();
+    let size_s = size_of::<S>();
+    let nu_len = if size_t > 0 {
+        assert_ne!(size_s, 0, "Cannot reinterpret a slice of non-zero sized types as a slice of zero sized types.");
+        // We must be able to split the given slice into appropriately sized chunks.
+        assert_eq!((slice.len() * size_t) % size_s, 0,
+                   "Slice cannot be safely reinterpreted due to a misaligned size");
+        (slice.len() * size_t) / size_s
+    } else {
+        assert_eq!(size_s, 0, "Cannot reinterpret a slice of zero sized types as a slice of non-zero sized types.");
+        slice.len()
+    };
     unsafe { slice::from_raw_parts(slice.as_ptr() as *const S, nu_len) }
 }
 
 /// Reinterpret a given `Vec` as a `Vec` of another type. This function checks that the resulting
 /// `Vec` is appropriately sized.
 pub fn reinterpret_vec<T, S>(mut vec: Vec<T>) -> Vec<S> {
-    // We must be able to split the given vec into appropriately sized chunks.
-    assert_eq!((vec.len() * size_of::<T>()) % size_of::<S>(), 0,
-               "Vec cannot be safely reinterpreted due to a misaligned size");
-    let nu_len = (vec.len() * size_of::<T>()) / size_of::<S>();
-    assert_eq!((vec.capacity() * size_of::<T>()) % size_of::<S>(), 0,
-               "Vec cannot be safely reinterpreted due to a misaligned capacity");
-    let nu_capacity = (vec.capacity() * size_of::<T>()) / size_of::<S>();
-    let vec_ptr = vec.as_mut_ptr();
+    let size_t = size_of::<T>();
+    let size_s = size_of::<S>();
+    let nu_vec = if size_t > 0 {
+       assert_ne!(size_s, 0, "Cannot reinterpret a Vec of non-zero sized types as a Vec of zero sized types.");
+        // We must be able to split the given vec into appropriately sized chunks.
+        assert_eq!((vec.len() * size_t) % size_s, 0,
+                   "Vec cannot be safely reinterpreted due to a misaligned size");
+        let nu_len = (vec.len() * size_t) / size_s;
+        assert_eq!((vec.capacity() * size_t) % size_s, 0,
+                   "Vec cannot be safely reinterpreted due to a misaligned capacity");
+        let nu_capacity = (vec.capacity() * size_t) / size_s;
+        let vec_ptr = vec.as_mut_ptr();
+        unsafe { Vec::from_raw_parts(vec_ptr as *mut S, nu_len, nu_capacity) }
+    } else {
+        assert_eq!(size_s, 0, "Cannot reinterpret a Vec of zero sized types as a Vec of non-zero sized types.");
+        let nu_len = vec.len();
+        let nu_capacity = vec.capacity();
+        debug_assert_eq!(nu_capacity, (-1isize) as usize, "Capacity should be -1 for 0 sized types. (bug)");
+        let vec_ptr = vec.as_mut_ptr();
+        unsafe { Vec::from_raw_parts(vec_ptr as *mut S, nu_len, nu_capacity) }
+    };
     ::std::mem::forget(vec);
-    unsafe { Vec::from_raw_parts(vec_ptr as *mut S, nu_len, nu_capacity) }
+    nu_vec
 }
 
 #[cfg(test)]
@@ -110,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn reinterpret_slice_mut_test() {
+    fn reinterpret_mut_slice_test() {
         let vec: Vec<[f64;3]> = vec![
             [0.5, 1.0, 2.0],
             [1.2, 1.4, 2.1],
@@ -144,5 +173,39 @@ mod tests {
         }
 
         assert_eq!(nu_vec, exp_vec);
+    }
+
+    /// Test reinterpreting collections of zero size structs.
+    #[test]
+    fn zero_size_test() {
+        #[derive(Debug, Clone, PartialEq)]
+        struct Foo {
+            a: (),
+            b: (),
+        }
+
+        let exp_vec: Vec<Foo> = vec![Foo { a: (), b: () }, Foo { a: (), b: () }];
+        let mut mut_vec = vec![(), ()];
+        let vec = mut_vec.clone();
+        let mut_slice = mut_vec.as_mut_slice();
+        let slice = vec.as_slice();
+        let exp_slice = exp_vec.as_slice();
+
+        // Convert to a collection of Foo.
+        let nu_vec: Vec<Foo> = reinterpret_vec(vec.clone());
+        assert_eq!(nu_vec, exp_vec);
+
+        let nu_slice: &[Foo] = reinterpret_slice(slice);
+        assert_eq!(nu_slice, exp_slice);
+
+        let nu_mut_slice: &mut [Foo] = reinterpret_mut_slice(mut_slice);
+        assert_eq!(nu_mut_slice, exp_slice);
+
+        // Convert back to a collection of ().
+        let old_vec: Vec<()> = reinterpret_vec(nu_vec.clone());
+        assert_eq!(vec, old_vec);
+
+        let old_slice: &[()] = reinterpret_mut_slice(nu_mut_slice);
+        assert_eq!(slice, old_slice);
     }
 }
