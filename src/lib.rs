@@ -1,16 +1,16 @@
 //!
-//! This crate provides convenient low-level utility functions for reinterpreting arrays of data.
+//! This crate provides convenient low-level utility functions for reinterpreting data.
 //! This includes `Vec`s and `slice`s. These functions are intrinsically unsafe but are very
-//! useful in performance critical code as they avoid additional copies.
+//! useful in performance critical code since they avoid additional copies.
 //!
 //! The goal of this crate is to provide some memory safety along the boundaries of `Vec`s and
-//! `slice`s when reinterpreting data to reduce the boilerplate for reinterpreting data.
+//! `slice`s to reduce the boilerplate for reinterpreting data.
 //!
 //! These functions check that the source and target arrays have the same size, however they don't
 //! check for safety of converting the contained types.
-//! 
+//!
 //! It is possible to write safe wrappers for converting collections of concrete types using these
-//! generic conversions, however this is out of the scope of this crate.
+//! functions, however this is out of the scope of this crate.
 //!
 //! # Examples
 //!
@@ -66,13 +66,22 @@ pub unsafe fn reinterpret_mut_slice<T, S>(slice: &mut [T]) -> &mut [S] {
     let size_t = size_of::<T>();
     let size_s = size_of::<S>();
     let nu_len = if size_t > 0 {
-        assert_ne!(size_s, 0, "Cannot reinterpret a slice of non-zero sized types as a slice of zero sized types.");
+        assert_ne!(
+            size_s, 0,
+            "Cannot reinterpret a slice of non-zero sized types as a slice of zero sized types."
+        );
         // We must be able to split the given slice into appropriately sized chunks.
-        assert_eq!((slice.len() * size_t) % size_s, 0,
-                    "Slice cannot be safely reinterpreted due to a misaligned size");
+        assert_eq!(
+            (slice.len() * size_t) % size_s,
+            0,
+            "Slice cannot be safely reinterpreted due to a misaligned size"
+        );
         (slice.len() * size_t) / size_s
     } else {
-        assert_eq!(size_s, 0, "Cannot reinterpret a slice of zero sized types as a slice of non-zero sized types.");
+        assert_eq!(
+            size_s, 0,
+            "Cannot reinterpret a slice of zero sized types as a slice of non-zero sized types."
+        );
         slice.len()
     };
     slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut S, nu_len)
@@ -84,13 +93,22 @@ pub unsafe fn reinterpret_slice<T, S>(slice: &[T]) -> &[S] {
     let size_t = size_of::<T>();
     let size_s = size_of::<S>();
     let nu_len = if size_t > 0 {
-        assert_ne!(size_s, 0, "Cannot reinterpret a slice of non-zero sized types as a slice of zero sized types.");
+        assert_ne!(
+            size_s, 0,
+            "Cannot reinterpret a slice of non-zero sized types as a slice of zero sized types."
+        );
         // We must be able to split the given slice into appropriately sized chunks.
-        assert_eq!((slice.len() * size_t) % size_s, 0,
-                   "Slice cannot be safely reinterpreted due to a misaligned size");
+        assert_eq!(
+            (slice.len() * size_t) % size_s,
+            0,
+            "Slice cannot be safely reinterpreted due to a misaligned size"
+        );
         (slice.len() * size_t) / size_s
     } else {
-        assert_eq!(size_s, 0, "Cannot reinterpret a slice of zero sized types as a slice of non-zero sized types.");
+        assert_eq!(
+            size_s, 0,
+            "Cannot reinterpret a slice of zero sized types as a slice of non-zero sized types."
+        );
         slice.len()
     };
     slice::from_raw_parts(slice.as_ptr() as *const S, nu_len)
@@ -102,21 +120,37 @@ pub unsafe fn reinterpret_vec<T, S>(mut vec: Vec<T>) -> Vec<S> {
     let size_t = size_of::<T>();
     let size_s = size_of::<S>();
     let nu_vec = if size_t > 0 {
-        assert_ne!(size_s, 0, "Cannot reinterpret a Vec of non-zero sized types as a Vec of zero sized types.");
+        assert_ne!(
+            size_s, 0,
+            "Cannot reinterpret a Vec of non-zero sized types as a Vec of zero sized types."
+        );
         // We must be able to split the given vec into appropriately sized chunks.
-        assert_eq!((vec.len() * size_t) % size_s, 0,
-                   "Vec cannot be safely reinterpreted due to a misaligned size");
+        assert_eq!(
+            (vec.len() * size_t) % size_s,
+            0,
+            "Vec cannot be safely reinterpreted due to a misaligned size"
+        );
         let nu_len = (vec.len() * size_t) / size_s;
-        assert_eq!((vec.capacity() * size_t) % size_s, 0,
-                   "Vec cannot be safely reinterpreted due to a misaligned capacity");
+        assert_eq!(
+            (vec.capacity() * size_t) % size_s,
+            0,
+            "Vec cannot be safely reinterpreted due to a misaligned capacity"
+        );
         let nu_capacity = (vec.capacity() * size_t) / size_s;
         let vec_ptr = vec.as_mut_ptr();
         Vec::from_raw_parts(vec_ptr as *mut S, nu_len, nu_capacity)
     } else {
-        assert_eq!(size_s, 0, "Cannot reinterpret a Vec of zero sized types as a Vec of non-zero sized types.");
+        assert_eq!(
+            size_s, 0,
+            "Cannot reinterpret a Vec of zero sized types as a Vec of non-zero sized types."
+        );
         let nu_len = vec.len();
         let nu_capacity = vec.capacity();
-        debug_assert_eq!(nu_capacity, (-1isize) as usize, "Capacity should be -1 for 0 sized types. (bug)");
+        debug_assert_eq!(
+            nu_capacity,
+            (-1isize) as usize,
+            "Capacity should be -1 for 0 sized types. (bug)"
+        );
         let vec_ptr = vec.as_mut_ptr();
         Vec::from_raw_parts(vec_ptr as *mut S, nu_len, nu_capacity)
     };
@@ -131,31 +165,23 @@ mod tests {
     /// Check that we can reinterpret a slice of `[f64;3]`s as a slice of `f64`s.
     #[test]
     fn reinterpret_slice_test() {
-        let vec: Vec<[f64;3]> = vec![
-            [0.1, 1.0, 2.0],
-            [1.2, 1.4, 2.1],
-            [0.5, 3.2, 4.0],
-        ];
+        let vec: Vec<[f64; 3]> = vec![[0.1, 1.0, 2.0], [1.2, 1.4, 2.1], [0.5, 3.2, 4.0]];
         let flat: Vec<f64> = vec![0.1, 1.0, 2.0, 1.2, 1.4, 2.1, 0.5, 3.2, 4.0];
         let nu_flat: &[f64] = unsafe { reinterpret_slice(vec.as_slice()) };
         assert_eq!(*nu_flat, *flat.as_slice()); // Same data.
         assert_eq!(nu_flat, flat.as_slice()); // Same memory.
 
-        let nu_slice: &[[f64;3]] = unsafe { reinterpret_slice(flat.as_slice()) };
+        let nu_slice: &[[f64; 3]] = unsafe { reinterpret_slice(flat.as_slice()) };
         assert_eq!(*nu_slice, *vec.as_slice()); // Same data.
         assert_eq!(nu_slice, vec.as_slice()); // Same memory.
     }
 
     #[test]
     fn reinterpret_mut_slice_test() {
-        let vec: Vec<[f64;3]> = vec![
-            [0.5, 1.0, 2.0],
-            [1.2, 1.4, 2.1],
-            [0.5, 3.2, 4.0],
-        ];
+        let vec: Vec<[f64; 3]> = vec![[0.5, 1.0, 2.0], [1.2, 1.4, 2.1], [0.5, 3.2, 4.0]];
         let flat_mut = &mut [-0.5, -1.0, -1.0, 0.2, -0.6, -0.9, -0.5, 1.2, 1.0];
 
-        let nu_mut_slice: &mut [[f64;3]] = unsafe { reinterpret_mut_slice(flat_mut) };
+        let nu_mut_slice: &mut [[f64; 3]] = unsafe { reinterpret_mut_slice(flat_mut) };
         for v in nu_mut_slice.iter_mut() {
             v[0] += 1.0;
             v[1] += 2.0;
@@ -167,13 +193,9 @@ mod tests {
 
     #[test]
     fn reinterpret_vec_test() {
-        let exp_vec: Vec<[f64;3]> = vec![
-            [0.5, 1.0, 2.0],
-            [1.2, 1.4, 2.1],
-            [0.5, 3.2, 4.0],
-        ];
+        let exp_vec: Vec<[f64; 3]> = vec![[0.5, 1.0, 2.0], [1.2, 1.4, 2.1], [0.5, 3.2, 4.0]];
         let vec = vec![-0.5, -1.0, -1.0, 0.2, -0.6, -0.9, -0.5, 1.2, 1.0];
-        let mut nu_vec: Vec<[f64;3]> = unsafe { reinterpret_vec(vec.clone()) };
+        let mut nu_vec: Vec<[f64; 3]> = unsafe { reinterpret_vec(vec.clone()) };
         for v in nu_vec.iter_mut() {
             v[0] += 1.0;
             v[1] += 2.0;
