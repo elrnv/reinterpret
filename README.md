@@ -60,6 +60,9 @@ behavior*. For instance:
     let b = 2;
     let v = vec![&a, &b];
     let mut m: Vec<&mut usize> = unsafe { reinterpret_vec(v) };
+    *m[0] = 3; // mutating through a shared reference is UB.
+# }
+```
 
 
 # License
